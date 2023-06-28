@@ -1,10 +1,11 @@
-import ttkbootstrap as ttk
-from tkinter import filedialog
+from tkinter import Tk, Menu, Frame, Label, Canvas, Text, Scrollbar, SEL, INSERT, END, filedialog
 from PIL import Image, ImageTk
 import pytesseract
 
-# defining global variables
-WIDTH = 750
+root = Tk()
+root.title('crop2text')
+
+WIDTH = 560
 HEIGHT = 560
 file_path = ""
 aspect_ratio = 0
@@ -12,11 +13,14 @@ start_x = 0
 start_y = 0
 end_x = 0
 end_y = 0
+scanned_text = ''
+rect = ''
 
-# function to open the image file
+
 def open_image():
     global file_path, HEIGHT, aspect_ratio
-    file_path = filedialog.askopenfilename(title="Open Image File", filetypes=[("All files", "*.*"), ("Image Files", "*.jpg;*.jpeg;*.png;*.gif;*.bmp")])
+    file_path = filedialog.askopenfilename(title="Open Image File", filetypes=[(
+        "All files", "*.*"), ("Image Files", "*.jpg;*.jpeg;*.png;*.gif;*.bmp")])
     if file_path:
         global image, photo_image
         image = Image.open(file_path)
@@ -27,85 +31,144 @@ def open_image():
         resized_image = image.resize((new_width, HEIGHT), Image.LANCZOS)
 
         image = ImageTk.PhotoImage(resized_image)
+        canvas.config(width=new_width)
         canvas.create_image(0, 0, anchor="nw", image=image)
 
-# Function to handle the mouse button press event
+        filepath_label.config(text=file_path)
+
+
 def start_rectangle(event):
-    global start_x, start_y
+    global start_x, start_y, rect
+    canvas.delete(rect)
     start_x = event.x
     start_y = event.y
 
-# Function to handle the mouse button release event
+
 def end_rectangle(event):
-    global end_x, end_y
+    global end_x, end_y, file_path
     end_x = event.x
     end_y = event.y
-    draw_rectangle()
+    if file_path:
+        draw_rectangle()
 
-# Function to draw the rectangle on the canvas
+
 def draw_rectangle():
-    global HEIGHT, WIDTH, aspect_ratio
+    global HEIGHT, WIDTH, aspect_ratio, scanned_text, rect
     image = Image.open(file_path)
 
     # Rectangle coordinates on the canvas
-    canvas_rect_coords = (start_x, start_y, end_x, end_y)
+    rect_points = (start_x, start_y, end_x, end_y)
 
     # Calculate rectangle coordinates in the original image
-    original_rect_coords = (
-        (canvas_rect_coords[0] / aspect_ratio),
-        (canvas_rect_coords[1] / aspect_ratio),
-        (canvas_rect_coords[2] / aspect_ratio),
-        (canvas_rect_coords[3] / aspect_ratio)
-    )
+    original_rect_coords = tuple(point / aspect_ratio for point in rect_points)
 
-    croppedImage  = image.crop(original_rect_coords)
+    croppedImage = image.crop(original_rect_coords)
     croppedImage.save(file_path[:file_path.rfind('/') + 1] + 'result.jpg')
-    text = pytesseract.image_to_string(croppedImage)
-    output_path = file_path[:file_path.rfind('/') + 1] + 'result.txt'
-    with open(output_path, "w", encoding="utf-8") as output_file:
-        output_file.write(text)
+    scanned_text = pytesseract.image_to_string(croppedImage)
+    update_scanned_text()
 
-    print(f"Scanned text saved to {output_path}")
-    canvas.create_rectangle(start_x, start_y, end_x, end_y, outline="yellow", fill="", width=2)
+    rect = canvas.create_rectangle(
+        start_x, start_y, end_x, end_y, outline="red", fill="", width=2)
+
+
+def update_scanned_text():
+    global scanned_text
+    editor.delete('1.0', 'end')
+    editor.insert('1.0', scanned_text)
+
 
 def update_coordinate_text(event):
     x = event.x
     y = event.y
-    canvas.itemconfig(coord_text, text=f"({x}, {y})")
+    cursor_coordinate.config(text=f"({x}, {y})")
 
-root = ttk.Window(themename="vapor")
-root.title("Image Editor")
-root.geometry("510x580+300+110")
-root.resizable(0,0)
-root.resizable(True,True)
-icon = ttk.PhotoImage(file='icon.png')
-root.iconphoto(False, icon)
 
-# the left frame to contain the 4 buttons
-left_frame = ttk.Frame(root, width=200, height=600)
-left_frame.pack(side="left", fill="y")
+def select_all(event):
+    editor.tag_add(SEL, '1.0', END)
+    editor.mark_set(INSERT, '1.0')
+    editor.see(INSERT)
+    return 'break'
 
-# Create a Canvas widget
-# the right canvas for displaying the image
-canvas = ttk.Canvas(root, width=WIDTH, height=HEIGHT, background="blue")
-canvas.pack()
 
+def save_to_file(event):
+    global scanned_text
+    file_path = filedialog.asksaveasfilename(defaultextension='.txt')
+    if file_path:
+        with open(file_path, 'w') as file:
+            file.write(scanned_text)
+    print(f"Scanned text saved to {file_path}")
+
+
+def delete_word_backspace(event):
+    editor.delete("insert-1c wordstart", "insert")
+
+
+def delete_word_delete(event):
+    editor.delete("insert", "insert + 1c wordend")
+
+
+# Menu bar
+menubar = Menu(root, background='#1f465f', foreground='white',
+               activebackground='#39627d', activeforeground='white')
+filemenu = Menu(menubar, tearoff=0, background='#1f465f', foreground='white',
+                activebackground='#39627d', activeforeground='white')
+filemenu.add_command(label="Open", command=open_image)
+filemenu.add_command(label="Exit", command=root.quit)
+menubar.add_cascade(label="File", menu=filemenu)
+root.config(menu=menubar)
+
+# main frame
+main_frame = Frame(root, background='blue')
+main_frame.pack(fill='both', expand=True)
+
+# canvas_frame
+canvas_frame = Frame(main_frame, background='#273148')
+canvas_frame.pack(side="left", fill='both', expand=True)
+
+# canvas
+canvas = Canvas(canvas_frame, width=WIDTH, height=HEIGHT,
+                background='#333b55', cursor='cross')
+canvas.pack(expand=True, anchor='center')
+
+# canvas bind
+canvas.bind("<Motion>", update_coordinate_text)
 canvas.bind("<ButtonPress-1>", start_rectangle)
 canvas.bind("<ButtonRelease-1>", end_rectangle)
 
-# Create a text item to display the coordinates
-coord_text = canvas.create_text(540, 540, anchor="nw", text="(0, 0)", fill="white")
+# text_frame
+editor_frame = Frame(main_frame, background='#1c2435', width=600)
+editor_frame.place(relx=1.0, rely=0.0, anchor='ne')
+editor_frame.pack_propagate(False)
+editor_frame.pack(fill='y', expand=True)
 
-# Bind the motion event to update the coordinate text
-canvas.bind("<Motion>", update_coordinate_text)
+# scrollbar
+scrollbar = Scrollbar(editor_frame)
+scrollbar.pack(side='right', fill='y')
 
-# loading the icons for the 4 buttons
-image_icon = ttk.PhotoImage(file = 'add.png').subsample(12, 12)
+editor = Text(editor_frame, yscrollcommand=scrollbar.set, background='#1c2435', fg="#c1e2ff",
+              insertbackground='white', borderwidth=0, highlightthickness=0, highlightbackground=root.cget("bg"))
+editor.tag_configure('sel', background='#273148', foreground='white')
+editor.pack(side='bottom', fill='both', expand=True, padx=12, pady=6)
+editor.bind('<Control-a>', select_all)
+editor.bind('<Control-s>', save_to_file)
+editor.bind('<Control-BackSpace>', delete_word_backspace)
+editor.bind('<Control-Delete>', delete_word_delete)
 
-# button for adding/opening the image file
-image_button = ttk.Button(left_frame, image=image_icon, bootstyle="light", command=open_image)
-image_button.pack(pady=5)
+scrollbar.config(command=editor.yview)
+
+# Bottom Frame
+bottom_frame = Frame(root, background='#1f465f')
+bottom_frame.pack(side='bottom', fill='x')
+
+filepath_label = Label(bottom_frame, text="Open an image first",
+                       background=bottom_frame['background'], fg='white')
+filepath_label.pack(side='left')
+
+cursor_coordinate = Label(bottom_frame, text="(0,0)",
+                          background=bottom_frame['background'], fg='white')
+cursor_coordinate.pack(side='right')
+
+# shortcut
+root.bind('<Control-o>', lambda event: open_image())
 
 root.mainloop()
-
-# https://www.thepythoncode.com/article/make-an-image-editor-in-tkinter-python#environment-set-up
