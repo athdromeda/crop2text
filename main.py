@@ -1,6 +1,7 @@
 from tkinter import Tk, Menu, Frame, Label, Canvas, Text, Scrollbar, SEL, INSERT, END, filedialog
 from PIL import Image, ImageTk
 import pytesseract
+import threading
 
 root = Tk()
 root.title('crop2text')
@@ -53,23 +54,28 @@ def end_rectangle(event):
 
 
 def draw_rectangle():
-    global HEIGHT, WIDTH, aspect_ratio, scanned_text, rect
+    global start_x, start_y, end_x, end_y, rect
+    perform_ocr()
+
+    rect = canvas.create_rectangle(
+        start_x, start_y, end_x, end_y, outline="red", fill="", width=2)
+
+    filepath_label.config(text='Loading...')
+    thread = threading.Thread(target=perform_ocr)
+    thread.start()
+
+def perform_ocr():
+    global HEIGHT, WIDTH, aspect_ratio, scanned_text, start_x, start_y, end_x, end_y
     image = Image.open(file_path)
 
-    # Rectangle coordinates on the canvas
     rect_points = (start_x, start_y, end_x, end_y)
-
-    # Calculate rectangle coordinates in the original image
     original_rect_coords = tuple(point / aspect_ratio for point in rect_points)
 
     croppedImage = image.crop(original_rect_coords)
     croppedImage.save(file_path[:file_path.rfind('/') + 1] + 'result.jpg')
     scanned_text = pytesseract.image_to_string(croppedImage)
+    filepath_label.config(text=file_path)
     update_scanned_text()
-
-    rect = canvas.create_rectangle(
-        start_x, start_y, end_x, end_y, outline="red", fill="", width=2)
-
 
 def update_scanned_text():
     global scanned_text
