@@ -19,13 +19,12 @@ cd crop2text
 ```
 pip install -r requirements.txt
 ```
-- Usage
-Run the `main.py` script with the following command:
+
+## Usage
+- Run the `main.py` script with the following command:
 ```
 python3 main.py
 ```
-
-## Usage
 - Open an image from the menubar `File>Open` or just press `Ctrl+O`
 - Select a region of the image
 - Scanned text will appear in the editor
