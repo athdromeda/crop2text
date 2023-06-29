@@ -18,6 +18,7 @@ scanned_text = ''
 rect = ''
 tesseract_cfg = {}
 whitelistOption = IntVar()
+blacklistOption = IntVar()
 
 
 def open_image():
@@ -124,6 +125,15 @@ def handle_whitelist():
     else:
         del tesseract_cfg['tessedit_char_whitelist']
 
+
+def handle_blacklist():
+    global tesseract_cfg, blacklistOption
+    if blacklistOption.get()==1:
+        tesseract_cfg['tessedit_char_blacklist'] = blacklist.get()
+    else:
+        del tesseract_cfg['tessedit_char_blacklist']
+
+
 # Menu bar
 menubar = Menu(root, background='#3c87f4', foreground='white',
                activebackground='#39627d', activeforeground='white')
@@ -159,6 +169,11 @@ whitelist_option = Checkbutton(tesseract_configs, background='#333b55', fg='#637
 whitelist_option.pack(side="left")
 whitelist = Entry(tesseract_configs, background='#4a567c', foreground='white', borderwidth=0, highlightthickness=0, insertbackground='white')
 whitelist.pack(side="left", pady=3, padx=3)
+
+blacklist_option = Checkbutton(tesseract_configs, background='#333b55', fg='#6372a2', text='Blacklist', variable=blacklistOption, command=handle_blacklist, borderwidth=0, highlightthickness=0)
+blacklist_option.pack(side="left")
+blacklist = Entry(tesseract_configs, background='#4a567c', foreground='white', borderwidth=0, highlightthickness=0, insertbackground='white')
+blacklist.pack(side="left", pady=3, padx=3)
 
 # text_frame
 editor_frame = Frame(main_frame, background='#1c2435', width=600)
