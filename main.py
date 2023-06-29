@@ -1,4 +1,4 @@
-from tkinter import Tk, Menu, Frame, Label, Canvas, Text, Scrollbar, SEL, INSERT, END, filedialog
+from tkinter import Checkbutton, Entry, IntVar, Tk, Menu, Frame, Label, Canvas, Text, Scrollbar, SEL, INSERT, END, filedialog
 from PIL import Image, ImageTk
 import pytesseract
 import threading
@@ -16,6 +16,8 @@ end_x = 0
 end_y = 0
 scanned_text = ''
 rect = ''
+tesseract_cfg = {}
+whitelistOption = IntVar()
 
 
 def open_image():
@@ -65,7 +67,7 @@ def draw_rectangle():
     thread.start()
 
 def perform_ocr():
-    global HEIGHT, WIDTH, aspect_ratio, scanned_text, start_x, start_y, end_x, end_y
+    global HEIGHT, WIDTH, aspect_ratio, scanned_text, start_x, start_y, end_x, end_y, tesseract_cfg
     image = Image.open(file_path)
 
     rect_points = (start_x, start_y, end_x, end_y)
@@ -73,7 +75,9 @@ def perform_ocr():
 
     croppedImage = image.crop(original_rect_coords)
     croppedImage.save(file_path[:file_path.rfind('/') + 1] + 'result.jpg')
-    scanned_text = pytesseract.image_to_string(croppedImage)
+
+    tesseract_cfg_str = ' '.join([f'-c {key}={value}' for key, value in tesseract_cfg.items()])
+    scanned_text = pytesseract.image_to_string(croppedImage, config=tesseract_cfg_str)
     filepath_label.config(text=file_path)
     update_scanned_text()
 
@@ -113,10 +117,17 @@ def delete_word_delete(event):
     editor.delete("insert", "insert + 1c wordend")
 
 
+def handle_whitelist():
+    global tesseract_cfg, whitelistOption
+    if whitelistOption.get()==1:
+        tesseract_cfg['tessedit_char_whitelist'] = whitelist.get()
+    else:
+        del tesseract_cfg['tessedit_char_whitelist']
+
 # Menu bar
-menubar = Menu(root, background='#1f465f', foreground='white',
+menubar = Menu(root, background='#3c87f4', foreground='white',
                activebackground='#39627d', activeforeground='white')
-filemenu = Menu(menubar, tearoff=0, background='#1f465f', foreground='white',
+filemenu = Menu(menubar, tearoff=0, background='#3c87f4', foreground='white',
                 activebackground='#39627d', activeforeground='white')
 filemenu.add_command(label="Open", command=open_image)
 filemenu.add_command(label="Exit", command=root.quit)
@@ -141,6 +152,14 @@ canvas.bind("<Motion>", update_coordinate_text)
 canvas.bind("<ButtonPress-1>", start_rectangle)
 canvas.bind("<ButtonRelease-1>", end_rectangle)
 
+tesseract_configs = Frame(canvas_frame, background='#333b55')
+tesseract_configs.pack(side="bottom", fill='x', expand=True, anchor='s')
+
+whitelist_option = Checkbutton(tesseract_configs, background='#333b55', fg='#6372a2', text='Whitelist', variable=whitelistOption, command=handle_whitelist, borderwidth=0, highlightthickness=0)
+whitelist_option.pack(side="left")
+whitelist = Entry(tesseract_configs, background='#4a567c', foreground='white', borderwidth=0, highlightthickness=0, insertbackground='white')
+whitelist.pack(side="left", pady=3, padx=3)
+
 # text_frame
 editor_frame = Frame(main_frame, background='#1c2435', width=600)
 editor_frame.place(relx=1.0, rely=0.0, anchor='ne')
@@ -163,7 +182,7 @@ editor.bind('<Control-Delete>', delete_word_delete)
 scrollbar.config(command=editor.yview)
 
 # Bottom Frame
-bottom_frame = Frame(root, background='#1f465f')
+bottom_frame = Frame(root, background='#3c87f4')
 bottom_frame.pack(side='bottom', fill='x')
 
 filepath_label = Label(bottom_frame, text="Open an image first",
